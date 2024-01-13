@@ -1,4 +1,5 @@
 const userModel=require('../models/userModel')
+const bcrypt=require('bcrypt')
 
 // create user register here
 exports.registerController= async(req,res)=>{
@@ -20,9 +21,10 @@ exports.registerController= async(req,res)=>{
                 message:"user already exists"
             })
         }
+        const hashedPassword=await bcrypt.hash(password,10);
 
         // save new user
-        const user=new userModel({username,email,password})
+        const user=new userModel({username,email,password:hashedPassword})
         await user.save()
         return res.status(201).send({
             success:true,
@@ -63,4 +65,46 @@ exports.getAllUsers=async(req,res)=>{
 };
 
 // login
-exports.loginController=()=>{};
+exports.loginController= async (req,res)=>{
+    try{
+        const {email,password}=req.body;
+        // validation
+        if(!email || !password ){
+            return res.status(401).send({
+                success:false,
+                message:"please provide email and password"
+            })
+        }
+
+        // if user is registered or not
+        const user=await userModel.findOne({email})
+        if(!user){
+            return res.status(200).send({
+                success:false,
+                message:"email is not registered"
+            })
+        }
+
+        // password
+        const isMatch = await bcrypt.compare(password,user.password);
+        if(!isMatch){
+            return res.status(401).send({
+                success:false,
+                message:"invalid username or password"
+            })
+        }
+
+        return res.status(200).send({
+            success:true,
+            message:'login successfully',
+            user
+        })
+    }catch(error){
+        console.log(error)
+        return res.status(500).send({
+            success:false,
+            message:"error in login",
+            error
+        })
+    }
+};
